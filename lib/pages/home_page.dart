@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/movie.dart';
+import '../models/tv_show.dart';
+import '../models/actor.dart';
 import '../widgets/movie_card.dart';
+import '../widgets/tv_show_card.dart';
+import '../widgets/actor_card.dart';
 import '../widgets/search_bar_widget.dart';
 import 'movie_details_page.dart';
 
@@ -18,16 +22,22 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   late TabController _tabController;
   late Future<List<Movie>> _nowPlayingMovies;
   late Future<List<Movie>> _popularMovies;
+  late Future<List<TvShow>> _popularTvShows;
+  late Future<List<Actor>> _popularActors;
 
   bool _isSearching = false;
-  Future<List<Movie>>? _searchResults;
+  Future<List<Movie>>? _movieSearchResults;
+  Future<List<TvShow>>? _tvSearchResults;
+  Future<List<Actor>>? _actorSearchResults;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _nowPlayingMovies = _apiService.fetchNowPlaying();
     _popularMovies = _apiService.fetchPopular();
+    _popularTvShows = _apiService.fetchPopularTv();
+    _popularActors = _apiService.fetchPopularActors();
 
     _tabController.addListener(() {
       if (_isSearching) _onClear();
@@ -48,20 +58,19 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     }
     setState(() {
       _isSearching = true;
-      _searchResults = _apiService.searchMovies(query);
+      _movieSearchResults = _apiService.searchMovies(query);
+      _tvSearchResults = _apiService.searchTvShows(query);
+      _actorSearchResults = _apiService.searchActors(query);
     });
   }
 
   void _onClear() {
     setState(() {
       _isSearching = false;
-      _searchResults = null;
+      _movieSearchResults = null;
+      _tvSearchResults = null;
+      _actorSearchResults = null;
     });
-  }
-
-  Future<List<Movie>> _currentMovies() {
-    if (_isSearching) return _searchResults!;
-    return _tabController.index == 0 ? _nowPlayingMovies : _popularMovies;
   }
 
   void _openMovie(BuildContext context, Movie movie) {
@@ -76,6 +85,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
       child: Row(
         children: [
+          
           Container(
             width: 3,
             height: 16,
@@ -84,7 +94,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               borderRadius: BorderRadius.circular(2),
             ),
           ),
+
           const SizedBox(width: 8),
+
           Text(
             title,
             style: const TextStyle(
@@ -94,6 +106,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               letterSpacing: 0.5,
             ),
           ),
+
         ],
       ),
     );
@@ -124,24 +137,201 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             },
           ),
         ),
+
         const SizedBox(height: 16),
+
         _sectionHeader(
           _tabController.index == 0 ? 'Now Playing' : 'Popular',
         ),
+
       ],
     );
   }
 
-  Widget _buildTabContent() {
+  Widget _buildTvHorizontalCarousel(List<TvShow> shows) {
+    final topShows = (shows.toList()
+          ..sort((a, b) => b.voteAverage.compareTo(a.voteAverage)))
+        .take(10)
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader('Top Rated'),
+        SizedBox(
+          height: 200,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(left: 16, right: 8),
+            itemCount: topShows.length,
+            itemBuilder: (context, index) {
+              final show = topShows[index];
+              return _HorizontalTvPosterCard(show: show);
+            },
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        _sectionHeader('Popular'),
+
+      ],
+    );
+  }
+
+  Widget _buildMovieTabContent(Future<List<Movie>> future, {bool isSearch = false}) {
     return FutureBuilder<List<Movie>>(
-      future: _currentMovies(),
+      future: future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
             child: CircularProgressIndicator(color: Color(0xFF01B4E4)),
           );
         }
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
 
+                const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+
+                const SizedBox(height: 16),
+
+                Text(
+                  "Error: ${snapshot.error}",
+                  style: const TextStyle(color: Colors.white70),
+                  textAlign: TextAlign.center,
+                ),
+
+              ],
+            ),
+          );
+        }
+        final movies = snapshot.data ?? [];
+        if (movies.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+
+                Icon(Icons.search_off, color: Colors.white38, size: 48),
+
+                SizedBox(height: 16),
+
+                Text(
+                  "No movies found",
+                  style: TextStyle(color: Colors.white54, fontSize: 16),
+                ),
+
+              ],
+            ),
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.only(bottom: 16),
+          itemCount: movies.length + 1,
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return isSearch
+                  ? _sectionHeader('Results')
+                  : _buildHorizontalCarousel(movies);
+            }
+            final movie = movies[index - 1];
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: MovieCard(
+                movie: movie,
+                onTap: () => _openMovie(context, movie),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildTvTabContent(Future<List<TvShow>> future, {bool isSearch = false}) {
+    return FutureBuilder<List<TvShow>>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF01B4E4)),
+          );
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+
+                const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+
+                const SizedBox(height: 16),
+
+                Text(
+                  "Error: ${snapshot.error}",
+                  style: const TextStyle(color: Colors.white70),
+                  textAlign: TextAlign.center,
+                ),
+
+              ],
+            ),
+          );
+        }
+        final shows = snapshot.data ?? [];
+        if (shows.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+
+                Icon(Icons.search_off, color: Colors.white38, size: 48),
+
+                SizedBox(height: 16),
+
+                Text(
+                  "No TV shows found",
+                  style: TextStyle(color: Colors.white54, fontSize: 16),
+                ),
+
+              ],
+            ),
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.only(bottom: 16),
+          itemCount: shows.length + 1,
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return isSearch
+                  ? _sectionHeader('Results')
+                  : _buildTvHorizontalCarousel(shows);
+            }
+            final show = shows[index - 1];
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TvShowCard(
+                show: show,
+                onTap: () {},
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildActorTabContent(Future<List<Actor>> future, {bool isSearch = false}) {
+    return FutureBuilder<List<Actor>>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF01B4E4)),
+          );
+        }
         if (snapshot.hasError) {
           return Center(
             child: Column(
@@ -163,20 +353,19 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           );
         }
 
-        final movies = snapshot.data ?? [];
-
-        if (movies.isEmpty) {
+        final actors = snapshot.data ?? [];
+        if (actors.isEmpty) {
           return const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
 
-                Icon(Icons.search_off, color: Colors.white38, size: 48),
+                Icon(Icons.person_off, color: Colors.white38, size: 48),
 
                 SizedBox(height: 16),
 
                 Text(
-                  "No movies found",
+                  "No actors found",
                   style: TextStyle(color: Colors.white54, fontSize: 16),
                 ),
 
@@ -184,29 +373,43 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             ),
           );
         }
-
         return ListView.builder(
           padding: const EdgeInsets.only(bottom: 16),
-
-          itemCount: movies.length + 1,
+          itemCount: actors.length + 1,
           itemBuilder: (context, index) {
             if (index == 0) {
-              return _isSearching
+              return isSearch
                   ? _sectionHeader('Results')
-                  : _buildHorizontalCarousel(movies);
+                  : _sectionHeader('Popular Actors');
             }
-            final movie = movies[index - 1];
+            final actor = actors[index - 1];
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: MovieCard(
-                movie: movie,
-                onTap: () => _openMovie(context, movie),
+              child: ActorCard(
+                actor: actor,
+                onTap: () {},
               ),
             );
           },
         );
+
       },
     );
+  }
+
+  Widget _buildCurrentTabContent() {
+    if (_isSearching) {
+      switch (_tabController.index) {
+        case 0:
+        case 1:
+          return _buildMovieTabContent(_movieSearchResults!, isSearch: true);
+        case 2:
+          return _buildTvTabContent(_tvSearchResults!, isSearch: true);
+        case 3:
+          return _buildActorTabContent(_actorSearchResults!, isSearch: true);
+      }
+    }
+    return const SizedBox.shrink();
   }
 
   @override
@@ -234,6 +437,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
           ],
         ),
+
         bottom: _isSearching
             ? null
             : TabBar(
@@ -242,21 +446,36 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 indicatorWeight: 3,
                 labelColor: const Color(0xFF01B4E4),
                 unselectedLabelColor: Colors.white54,
+                tabAlignment: TabAlignment.fill,
+                labelPadding: EdgeInsets.zero,
                 labelStyle: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: 13,
                 ),
+
                 tabs: const [
 
                   Tab(
-                    icon: Icon(Icons.play_circle_outline, size: 18),
+                    icon: Icon(Icons.play_circle_outline, size: 16),
                     text: 'Now Playing',
                     iconMargin: EdgeInsets.only(bottom: 2),
                   ),
 
                   Tab(
-                    icon: Icon(Icons.local_fire_department_outlined, size: 18),
+                    icon: Icon(Icons.local_fire_department_outlined, size: 16),
                     text: 'Popular',
+                    iconMargin: EdgeInsets.only(bottom: 2),
+                  ),
+
+                  Tab(
+                    icon: Icon(Icons.tv, size: 16),
+                    text: 'Series',
+                    iconMargin: EdgeInsets.only(bottom: 2),
+                  ),
+
+                  Tab(
+                    icon: Icon(Icons.people_outline, size: 16),
+                    text: 'Actors',
                     iconMargin: EdgeInsets.only(bottom: 2),
                   ),
                   
@@ -277,12 +496,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
           Expanded(
             child: _isSearching
-                ? _buildTabContent()
+                ? _buildCurrentTabContent()
                 : TabBarView(
                     controller: _tabController,
                     children: [
-                      _buildTabContent(),
-                      _buildTabContent(),
+                      _buildMovieTabContent(_nowPlayingMovies),
+                      _buildMovieTabContent(_popularMovies),
+                      _buildTvTabContent(_popularTvShows),
+                      _buildActorTabContent(_popularActors),
                     ],
                   ),
           ),
@@ -324,6 +545,7 @@ class _HorizontalPosterCard extends StatelessWidget {
                       errorBuilder: (_, __, ___) => Container(
                         width: 110,
                         height: 155,
+
                         color: const Color(0xFF1E2340),
 
                         child: const Icon(Icons.broken_image,
@@ -342,7 +564,6 @@ class _HorizontalPosterCard extends StatelessWidget {
                           color: Colors.black.withOpacity(0.72),
                           borderRadius: BorderRadius.circular(6),
                         ),
-
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -363,9 +584,9 @@ class _HorizontalPosterCard extends StatelessWidget {
 
                           ],
                         ),
-
                       ),
                     ),
+                  
                   ],
                 ),
               ),
@@ -386,6 +607,101 @@ class _HorizontalPosterCard extends StatelessWidget {
 
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HorizontalTvPosterCard extends StatelessWidget {
+  final TvShow show;
+
+  const _HorizontalTvPosterCard({required this.show});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 110,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Stack(
+                children: [
+
+                  Image.network(
+                    show.posterUrl,
+                    width: 110,
+                    height: 155,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 110,
+                      height: 155,
+
+                      color: const Color(0xFF1E2340),
+
+                      child: const Icon(Icons.broken_image,
+                          color: Colors.white38, size: 32),
+
+                    ),
+                  ),
+
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.72),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+
+                          const Icon(Icons.star,
+                              color: Color(0xFFFFD700), size: 10),
+
+                          const SizedBox(width: 2),
+
+                          Text(
+                            show.voteAverage.toStringAsFixed(1),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+
+                        ],
+                      ),
+                    ),
+                  ),
+
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 5),
+
+            Text(
+              show.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                height: 1.3,
+              ),
+            ),
+
+          ],
         ),
       ),
     );

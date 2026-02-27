@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../models/movie.dart';
+import '../models/tv_show.dart';
 
-class MovieDetailsPage extends StatelessWidget {
-  final Movie movie;
+class TvShowDetailsPage extends StatelessWidget {
+  final TvShow show;
 
-  const MovieDetailsPage({required this.movie, super.key});
+  const TvShowDetailsPage({required this.show, super.key});
 
   Color _ratingColor(double rating) {
     if (rating >= 7) return const Color(0xFF21D07A);
@@ -17,18 +17,16 @@ class MovieDetailsPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFF0D0F1E),
       appBar: AppBar(
-        
         backgroundColor: const Color(0xFF0D0F1E),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
 
         title: Text(
-          movie.title,
+          show.name,
           style: const TextStyle(color: Colors.white, fontSize: 18),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-
       ),
 
       body: SingleChildScrollView(
@@ -43,22 +41,22 @@ class MovieDetailsPage extends StatelessWidget {
                   width: double.infinity,
                   height: 400,
                   child: Image.network(
-                    movie.posterUrl,
+                    show.posterUrl,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Container(
                       height: 400,
+
                       color: const Color(0xFF1E2340),
 
                       child: const Center(
                         child: Icon(Icons.broken_image, color: Colors.white38, size: 64),
-                      ),
 
+                      ),
                     ),
                   ),
                 ),
 
                 Positioned.fill(
-
                   child: Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
@@ -69,8 +67,8 @@ class MovieDetailsPage extends StatelessWidget {
                       ),
                     ),
                   ),
-
                 ),
+
               ],
             ),
 
@@ -81,7 +79,7 @@ class MovieDetailsPage extends StatelessWidget {
                 children: [
 
                   Text(
-                    movie.title,
+                    show.name,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
@@ -98,23 +96,22 @@ class MovieDetailsPage extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: _ratingColor(movie.voteAverage).withOpacity(0.15),
+                          color: _ratingColor(show.voteAverage).withOpacity(0.15),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: _ratingColor(movie.voteAverage), width: 1.5),
+                          border: Border.all(color: _ratingColor(show.voteAverage), width: 1.5),
                         ),
-
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
 
-                            Icon(Icons.star, color: _ratingColor(movie.voteAverage), size: 16),
+                            Icon(Icons.star, color: _ratingColor(show.voteAverage), size: 16),
 
                             const SizedBox(width: 4),
 
                             Text(
-                              movie.voteAverage.toStringAsFixed(1),
+                              show.voteAverage.toStringAsFixed(1),
                               style: TextStyle(
-                                color: _ratingColor(movie.voteAverage),
+                                color: _ratingColor(show.voteAverage),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
                               ),
@@ -126,8 +123,8 @@ class MovieDetailsPage extends StatelessWidget {
 
                       const SizedBox(width: 12),
 
-                      if (movie.releaseDate.isNotEmpty)
-
+                      if (show.firstAirDate.isNotEmpty)
+                      
                         Row(
                           children: [
 
@@ -136,7 +133,7 @@ class MovieDetailsPage extends StatelessWidget {
                             const SizedBox(width: 6),
 
                             Text(
-                              movie.releaseDate,
+                              show.firstAirDate,
                               style: const TextStyle(color: Colors.white54, fontSize: 14),
                             ),
 
@@ -159,7 +156,7 @@ class MovieDetailsPage extends StatelessWidget {
                   const SizedBox(height: 8),
 
                   Text(
-                    movie.overview.isEmpty ? "No description available." : movie.overview,
+                    show.overview.isEmpty ? "No description available." : show.overview,
                     style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 15,
