@@ -9,6 +9,10 @@ import '../secrets.dart';
 class ApiService {
   static const String _baseUrl = "https://api.themoviedb.org/3";
 
+  final String language;
+
+  ApiService({this.language = 'en-US'});
+
   Map<String, String> get _headers => {
     'Authorization': 'Bearer $API_KEY',
     'Content-Type': 'application/json',
@@ -72,45 +76,47 @@ class ApiService {
     }
   }
 
+  String get _lang => language;
+
   Future<List<Movie>> fetchNowPlaying() =>
-      _getMovies('/movie/now_playing?language=en-US&page=1');
+      _getMovies('/movie/now_playing?language=$_lang&page=1');
 
   Future<List<Movie>> fetchPopular() =>
-      _getMovies('/movie/popular?language=en-US&page=1');
+      _getMovies('/movie/popular?language=$_lang&page=1');
 
   Future<List<Movie>> searchMovies(String query) async {
     if (query.trim().isEmpty) return [];
     return _getMovies(
-      '/search/movie?language=en-US&query=${Uri.encodeComponent(query)}&page=1',
+      '/search/movie?language=$_lang&query=${Uri.encodeComponent(query)}&page=1',
     );
   }
 
   Future<List<VideoResult>> fetchMovieVideos(int movieId) =>
-      _getVideos('/movie/$movieId/videos?language=en-US');
+      _getVideos('/movie/$movieId/videos?language=$_lang');
 
   Future<List<TvShow>> fetchOnAirTv() =>
-      _getTvShows('/tv/on_the_air?language=en-US&page=1');
+      _getTvShows('/tv/on_the_air?language=$_lang&page=1');
 
   Future<List<TvShow>> fetchPopularTv() =>
-      _getTvShows('/tv/popular?language=en-US&page=1');
+      _getTvShows('/tv/popular?language=$_lang&page=1');
 
   Future<List<TvShow>> searchTvShows(String query) async {
     if (query.trim().isEmpty) return [];
     return _getTvShows(
-      '/search/tv?language=en-US&query=${Uri.encodeComponent(query)}&page=1',
+      '/search/tv?language=$_lang&query=${Uri.encodeComponent(query)}&page=1',
     );
   }
 
   Future<List<VideoResult>> fetchTvVideos(int tvId) =>
-      _getVideos('/tv/$tvId/videos?language=en-US');
+      _getVideos('/tv/$tvId/videos?language=$_lang');
 
   Future<List<Actor>> fetchPopularActors() =>
-      _getActors('/person/popular?language=en-US&page=1');
+      _getActors('/person/popular?language=$_lang&page=1');
 
   Future<List<Actor>> searchActors(String query) async {
     if (query.trim().isEmpty) return [];
     return _getActors(
-      '/search/person?language=en-US&query=${Uri.encodeComponent(query)}&page=1',
+      '/search/person?language=$_lang&query=${Uri.encodeComponent(query)}&page=1',
     );
   }
 }

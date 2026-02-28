@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/tv_show.dart';
+import '../models/video_result.dart';
 import '../services/api_service.dart';
 import '../widgets/trailers_section.dart';
 
@@ -14,7 +15,7 @@ class TvShowDetailsPage extends StatefulWidget {
 
 class _TvShowDetailsPageState extends State<TvShowDetailsPage> {
   final ApiService _apiService = ApiService();
-  late final Future _videosFuture;
+  late final Future<List<VideoResult>> _videosFuture;
 
   @override
   void initState() {
@@ -44,12 +45,11 @@ class _TvShowDetailsPageState extends State<TvShowDetailsPage> {
           overflow: TextOverflow.ellipsis,
         ),
       ),
-      
+
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             Stack(
               children: [
 
@@ -65,10 +65,9 @@ class _TvShowDetailsPageState extends State<TvShowDetailsPage> {
                       color: const Color(0xFF1E2340),
 
                       child: const Center(
-                        child: Icon(Icons.broken_image,
-                            color: Colors.white38, size: 64),
-                      ),
+                        child: Icon(Icons.broken_image, color: Colors.white38, size: 64),
 
+                      ),
                     ),
                   ),
                 ),
@@ -111,15 +110,12 @@ class _TvShowDetailsPageState extends State<TvShowDetailsPage> {
                     children: [
 
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: _ratingColor(widget.show.voteAverage)
-                              .withOpacity(0.15),
+                          color: _ratingColor(widget.show.voteAverage).withOpacity(0.15),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: _ratingColor(widget.show.voteAverage),
-                              width: 1.5),
+                              color: _ratingColor(widget.show.voteAverage), width: 1.5),
                         ),
 
                         child: Row(
@@ -127,8 +123,7 @@ class _TvShowDetailsPageState extends State<TvShowDetailsPage> {
                           children: [
 
                             Icon(Icons.star,
-                                color: _ratingColor(widget.show.voteAverage),
-                                size: 16),
+                                color: _ratingColor(widget.show.voteAverage), size: 16),
 
                             const SizedBox(width: 4),
 
@@ -150,22 +145,20 @@ class _TvShowDetailsPageState extends State<TvShowDetailsPage> {
                       if (widget.show.firstAirDate.isNotEmpty)
 
                         Row(
+
                           children: [
 
-                            const Icon(Icons.calendar_today,
-                                color: Colors.white54, size: 14),
+                            const Icon(Icons.calendar_today, color: Colors.white54, size: 14),
 
                             const SizedBox(width: 6),
 
                             Text(
                               widget.show.firstAirDate,
-                              style: const TextStyle(
-                                  color: Colors.white54, fontSize: 14),
+                              style: const TextStyle(color: Colors.white54, fontSize: 14),
                             ),
 
                           ],
                         ),
-
                     ],
                   ),
 
@@ -194,7 +187,7 @@ class _TvShowDetailsPageState extends State<TvShowDetailsPage> {
                   ),
 
                   TrailersSection(future: _videosFuture),
-
+                  
                 ],
               ),
             ),

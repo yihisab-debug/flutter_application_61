@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../models/movie.dart';
 import '../models/tv_show.dart';
@@ -7,7 +8,10 @@ import '../widgets/movie_card.dart';
 import '../widgets/tv_show_card.dart';
 import '../widgets/actor_card.dart';
 import '../widgets/search_bar_widget.dart';
+import '../app_languages.dart';
 import 'movie_details_page.dart';
+import 'tv_show_details_page.dart';
+import 'actor_details_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -17,8 +21,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
-  final ApiService _apiService = ApiService();
-
   late TabController _tabController;
   late Future<List<Movie>> _nowPlayingMovies;
   late Future<List<Movie>> _popularMovies;
@@ -30,19 +32,44 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   Future<List<TvShow>>? _tvSearchResults;
   Future<List<Actor>>? _actorSearchResults;
 
+  String _lastLanguage = '';
+
+  ApiService _api(BuildContext context) {
+    final lang = context.read<AppLanguage>().apiLanguage;
+    return ApiService(language: lang);
+  }
+
+  void _loadData(String language) {
+    final api = ApiService(language: language);
+    _nowPlayingMovies = api.fetchNowPlaying();
+    _popularMovies    = api.fetchPopular();
+    _popularTvShows   = api.fetchPopularTv();
+    _popularActors    = api.fetchPopularActors();
+    _lastLanguage = language;
+  }
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    _nowPlayingMovies = _apiService.fetchNowPlaying();
-    _popularMovies = _apiService.fetchPopular();
-    _popularTvShows = _apiService.fetchPopularTv();
-    _popularActors = _apiService.fetchPopularActors();
+    _loadData('en-US');
 
     _tabController.addListener(() {
       if (_isSearching) _onClear();
       setState(() {});
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final lang = context.read<AppLanguage>().apiLanguage;
+    if (lang != _lastLanguage) {
+      setState(() {
+        _onClear();
+        _loadData(lang);
+      });
+    }
   }
 
   @override
@@ -56,11 +83,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       _onClear();
       return;
     }
+    final api = _api(context);
     setState(() {
       _isSearching = true;
-      _movieSearchResults = _apiService.searchMovies(query);
-      _tvSearchResults = _apiService.searchTvShows(query);
-      _actorSearchResults = _apiService.searchActors(query);
+      _movieSearchResults = api.searchMovies(query);
+      _tvSearchResults    = api.searchTvShows(query);
+      _actorSearchResults = api.searchActors(query);
     });
   }
 
@@ -68,16 +96,24 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     setState(() {
       _isSearching = false;
       _movieSearchResults = null;
-      _tvSearchResults = null;
+      _tvSearchResults    = null;
       _actorSearchResults = null;
     });
   }
 
   void _openMovie(BuildContext context, Movie movie) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => MovieDetailsPage(movie: movie)),
-    );
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => MovieDetailsPage(movie: movie)));
+  }
+
+  void _openTvShow(BuildContext context, TvShow show) {
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => TvShowDetailsPage(show: show)));
+  }
+
+  void _openActor(BuildContext context, Actor actor) {
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => ActorDetailsPage(actor: actor)));
   }
 
   Widget _sectionHeader(String title) {
@@ -85,7 +121,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
       child: Row(
         children: [
-          
+
           Container(
             width: 3,
             height: 16,
@@ -112,7 +148,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-  Widget _buildHorizontalCarousel(List<Movie> movies) {
+  Widget _buildHorizontalCarousel(List<Movie> movies, AppLanguage lang) {
     final topMovies = (movies.toList()
           ..sort((a, b) => b.voteAverage.compareTo(a.voteAverage)))
         .take(10)
@@ -121,7 +157,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader('Top Rated'),
+
+        _sectionHeader(lang.topRated),
+
         SizedBox(
           height: 200,
           child: ListView.builder(
@@ -140,15 +178,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
         const SizedBox(height: 16),
 
-        _sectionHeader(
-          _tabController.index == 0 ? 'Now Playing' : 'Popular',
-        ),
+        _sectionHeader(_tabController.index == 0 ? lang.nowPlaying : lang.popular),
 
       ],
     );
   }
 
-  Widget _buildTvHorizontalCarousel(List<TvShow> shows) {
+  Widget _buildTvHorizontalCarousel(List<TvShow> shows, AppLanguage lang) {
     final topShows = (shows.toList()
           ..sort((a, b) => b.voteAverage.compareTo(a.voteAverage)))
         .take(10)
@@ -157,7 +193,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader('Top Rated'),
+
+        _sectionHeader(lang.topRated),
+
         SizedBox(
           height: 200,
           child: ListView.builder(
@@ -173,59 +211,49 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
         const SizedBox(height: 16),
 
-        _sectionHeader('Popular'),
+        _sectionHeader(lang.popular),
 
       ],
     );
   }
 
-  Widget _buildMovieTabContent(Future<List<Movie>> future, {bool isSearch = false}) {
+  Widget _buildMovieTabContent(Future<List<Movie>> future,
+      {bool isSearch = false, required AppLanguage lang}) {
     return FutureBuilder<List<Movie>>(
       future: future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
-            child: CircularProgressIndicator(color: Color(0xFF01B4E4)),
-          );
+              child: CircularProgressIndicator(color: Color(0xFF01B4E4)));
         }
         if (snapshot.hasError) {
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
 
-                const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+              const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
 
-                const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-                Text(
-                  "Error: ${snapshot.error}",
+              Text("Error: ${snapshot.error}",
                   style: const TextStyle(color: Colors.white70),
-                  textAlign: TextAlign.center,
-                ),
+                  textAlign: TextAlign.center),
 
-              ],
-            ),
+            ]),
           );
         }
         final movies = snapshot.data ?? [];
         if (movies.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+          return Center(
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
 
-                Icon(Icons.search_off, color: Colors.white38, size: 48),
+              const Icon(Icons.search_off, color: Colors.white38, size: 48),
 
-                SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-                Text(
-                  "No movies found",
-                  style: TextStyle(color: Colors.white54, fontSize: 16),
-                ),
+              Text(lang.noMovies,
+                  style: const TextStyle(color: Colors.white54, fontSize: 16)),
 
-              ],
-            ),
+            ]),
           );
         }
         return ListView.builder(
@@ -234,161 +262,138 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           itemBuilder: (context, index) {
             if (index == 0) {
               return isSearch
-                  ? _sectionHeader('Results')
-                  : _buildHorizontalCarousel(movies);
+                  ? _sectionHeader(lang.results)
+                  : _buildHorizontalCarousel(movies, lang);
             }
             final movie = movies[index - 1];
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: MovieCard(
-                movie: movie,
-                onTap: () => _openMovie(context, movie),
-              ),
+                  movie: movie, onTap: () => _openMovie(context, movie)),
             );
           },
         );
+
       },
     );
   }
 
-  Widget _buildTvTabContent(Future<List<TvShow>> future, {bool isSearch = false}) {
+  Widget _buildTvTabContent(Future<List<TvShow>> future,
+      {bool isSearch = false, required AppLanguage lang}) {
     return FutureBuilder<List<TvShow>>(
       future: future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
-            child: CircularProgressIndicator(color: Color(0xFF01B4E4)),
-          );
+              child: CircularProgressIndicator(color: Color(0xFF01B4E4)));
         }
         if (snapshot.hasError) {
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
 
-                const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+              const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
 
-                const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-                Text(
-                  "Error: ${snapshot.error}",
+              Text("Error: ${snapshot.error}",
                   style: const TextStyle(color: Colors.white70),
-                  textAlign: TextAlign.center,
-                ),
+                  textAlign: TextAlign.center),
 
-              ],
-            ),
+            ]),
           );
         }
         final shows = snapshot.data ?? [];
         if (shows.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+          return Center(
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
 
-                Icon(Icons.search_off, color: Colors.white38, size: 48),
+              const Icon(Icons.search_off, color: Colors.white38, size: 48),
 
-                SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-                Text(
-                  "No TV shows found",
-                  style: TextStyle(color: Colors.white54, fontSize: 16),
-                ),
+              Text(lang.noShows,
+                  style: const TextStyle(color: Colors.white54, fontSize: 16)),
 
-              ],
-            ),
+            ]),
           );
         }
+
         return ListView.builder(
           padding: const EdgeInsets.only(bottom: 16),
           itemCount: shows.length + 1,
           itemBuilder: (context, index) {
             if (index == 0) {
               return isSearch
-                  ? _sectionHeader('Results')
-                  : _buildTvHorizontalCarousel(shows);
+                  ? _sectionHeader(lang.results)
+                  : _buildTvHorizontalCarousel(shows, lang);
             }
             final show = shows[index - 1];
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: TvShowCard(
-                show: show,
-                onTap: () {},
-              ),
+                  show: show, onTap: () => _openTvShow(context, show)),
             );
           },
         );
+
       },
     );
   }
 
-  Widget _buildActorTabContent(Future<List<Actor>> future, {bool isSearch = false}) {
+  Widget _buildActorTabContent(Future<List<Actor>> future,
+      {bool isSearch = false, required AppLanguage lang}) {
     return FutureBuilder<List<Actor>>(
       future: future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
-            child: CircularProgressIndicator(color: Color(0xFF01B4E4)),
-          );
+              child: CircularProgressIndicator(color: Color(0xFF01B4E4)));
         }
         if (snapshot.hasError) {
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
 
-                const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+              const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
 
-                const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-                Text(
-                  "Error: ${snapshot.error}",
+              Text("Error: ${snapshot.error}",
                   style: const TextStyle(color: Colors.white70),
-                  textAlign: TextAlign.center,
-                ),
+                  textAlign: TextAlign.center),
 
-              ],
-            ),
+            ]),
           );
         }
 
         final actors = snapshot.data ?? [];
         if (actors.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+          return Center(
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
 
-                Icon(Icons.person_off, color: Colors.white38, size: 48),
+              const Icon(Icons.person_off, color: Colors.white38, size: 48),
 
-                SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-                Text(
-                  "No actors found",
-                  style: TextStyle(color: Colors.white54, fontSize: 16),
-                ),
+              Text(lang.noActors,
+                  style: const TextStyle(color: Colors.white54, fontSize: 16)),
 
-              ],
-            ),
+            ]),
           );
         }
+
         return ListView.builder(
           padding: const EdgeInsets.only(bottom: 16),
           itemCount: actors.length + 1,
           itemBuilder: (context, index) {
             if (index == 0) {
-              return isSearch
-                  ? _sectionHeader('Results')
-                  : _sectionHeader('Popular Actors');
+              return _sectionHeader(
+                  isSearch ? lang.results : lang.popularActors);
             }
             final actor = actors[index - 1];
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: ActorCard(
-                actor: actor,
-                onTap: () {},
-              ),
+                  actor: actor, onTap: () => _openActor(context, actor)),
             );
           },
         );
@@ -397,16 +402,19 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-  Widget _buildCurrentTabContent() {
+  Widget _buildCurrentTabContent(AppLanguage lang) {
     if (_isSearching) {
       switch (_tabController.index) {
         case 0:
         case 1:
-          return _buildMovieTabContent(_movieSearchResults!, isSearch: true);
+          return _buildMovieTabContent(_movieSearchResults!,
+              isSearch: true, lang: lang);
         case 2:
-          return _buildTvTabContent(_tvSearchResults!, isSearch: true);
+          return _buildTvTabContent(_tvSearchResults!,
+              isSearch: true, lang: lang);
         case 3:
-          return _buildActorTabContent(_actorSearchResults!, isSearch: true);
+          return _buildActorTabContent(_actorSearchResults!,
+              isSearch: true, lang: lang);
       }
     }
     return const SizedBox.shrink();
@@ -414,11 +422,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<AppLanguage>();
+
     return Scaffold(
       backgroundColor: const Color(0xFF0D0F1E),
       appBar: AppBar(
         backgroundColor: const Color(0xFF0D0F1E),
         elevation: 0,
+        automaticallyImplyLeading: false,
         title: Row(
           children: [
 
@@ -427,7 +438,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             const SizedBox(width: 8),
 
             Text(
-              _isSearching ? 'Search Results' : 'Movie DB',
+              _isSearching ? lang.searchResults : lang.appTitle,
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -437,6 +448,52 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
           ],
         ),
+        actions: [
+
+          GestureDetector(
+            onTap: () {
+              context.read<AppLanguage>().toggle();
+            },
+
+            child: Container(
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+
+                color: const Color(0xFF1E2340),
+
+                borderRadius: BorderRadius.circular(20),
+
+                border: Border.all(color: const Color(0xFF01B4E4), width: 1.5),
+
+              ),
+
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+
+                  Text(
+                    lang.isRussian ? '🇷🇺' : '🇺🇸',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+
+                  const SizedBox(width: 4),
+
+                  Text(
+                    lang.isRussian ? 'RU' : 'EN',
+                    style: const TextStyle(
+                      color: Color(0xFF01B4E4),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+
+                ],
+              ),
+
+            ),
+          ),
+        ],
 
         bottom: _isSearching
             ? null
@@ -453,30 +510,30 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   fontSize: 13,
                 ),
 
-                tabs: const [
+                tabs: [
 
                   Tab(
-                    icon: Icon(Icons.play_circle_outline, size: 16),
-                    text: 'Now Playing',
-                    iconMargin: EdgeInsets.only(bottom: 2),
+                    icon: const Icon(Icons.play_circle_outline, size: 16),
+                    text: lang.nowPlaying,
+                    iconMargin: const EdgeInsets.only(bottom: 2),
                   ),
 
                   Tab(
-                    icon: Icon(Icons.local_fire_department_outlined, size: 16),
-                    text: 'Popular',
-                    iconMargin: EdgeInsets.only(bottom: 2),
+                    icon: const Icon(Icons.local_fire_department_outlined, size: 16),
+                    text: lang.popular,
+                    iconMargin: const EdgeInsets.only(bottom: 2),
                   ),
 
                   Tab(
-                    icon: Icon(Icons.tv, size: 16),
-                    text: 'Series',
-                    iconMargin: EdgeInsets.only(bottom: 2),
+                    icon: const Icon(Icons.tv, size: 16),
+                    text: lang.series,
+                    iconMargin: const EdgeInsets.only(bottom: 2),
                   ),
 
                   Tab(
-                    icon: Icon(Icons.people_outline, size: 16),
-                    text: 'Actors',
-                    iconMargin: EdgeInsets.only(bottom: 2),
+                    icon: const Icon(Icons.people_outline, size: 16),
+                    text: lang.actors,
+                    iconMargin: const EdgeInsets.only(bottom: 2),
                   ),
                   
                 ],
@@ -496,14 +553,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
           Expanded(
             child: _isSearching
-                ? _buildCurrentTabContent()
+                ? _buildCurrentTabContent(lang)
                 : TabBarView(
                     controller: _tabController,
                     children: [
-                      _buildMovieTabContent(_nowPlayingMovies),
-                      _buildMovieTabContent(_popularMovies),
-                      _buildTvTabContent(_popularTvShows),
-                      _buildActorTabContent(_popularActors),
+                      _buildMovieTabContent(_nowPlayingMovies, lang: lang),
+                      _buildMovieTabContent(_popularMovies, lang: lang),
+                      _buildTvTabContent(_popularTvShows, lang: lang),
+                      _buildActorTabContent(_popularActors, lang: lang),
                     ],
                   ),
           ),
@@ -564,6 +621,7 @@ class _HorizontalPosterCard extends StatelessWidget {
                           color: Colors.black.withOpacity(0.72),
                           borderRadius: BorderRadius.circular(6),
                         ),
+
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -586,7 +644,6 @@ class _HorizontalPosterCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                  
                   ],
                 ),
               ),
@@ -627,7 +684,7 @@ class _HorizontalTvPosterCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
+            
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Stack(
@@ -660,6 +717,7 @@ class _HorizontalTvPosterCard extends StatelessWidget {
                         color: Colors.black.withOpacity(0.72),
                         borderRadius: BorderRadius.circular(6),
                       ),
+
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -680,13 +738,13 @@ class _HorizontalTvPosterCard extends StatelessWidget {
 
                         ],
                       ),
+
                     ),
                   ),
-
                 ],
               ),
             ),
-
+            
             const SizedBox(height: 5),
 
             Text(
