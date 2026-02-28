@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/movie.dart';
 import '../models/tv_show.dart';
 import '../models/actor.dart';
+import '../models/video_result.dart';
 import '../secrets.dart';
 
 class ApiService {
@@ -53,6 +54,24 @@ class ApiService {
     return results.map((actor) => Actor.fromJson(actor)).toList();
   }
 
+  Future<List<VideoResult>> _getVideos(String endpoint) async {
+    try {
+      final data = await _getRaw(endpoint);
+      final List results = data['results'];
+      return results
+          .map((v) => VideoResult.fromJson(v))
+          .where((v) => v.isYouTube && v.key.isNotEmpty)
+          .toList()
+        ..sort((a, b) {
+          if (a.type == 'Trailer' && b.type != 'Trailer') return -1;
+          if (a.type != 'Trailer' && b.type == 'Trailer') return 1;
+          return 0;
+        });
+    } catch (_) {
+      return [];
+    }
+  }
+
   Future<List<Movie>> fetchNowPlaying() =>
       _getMovies('/movie/now_playing?language=en-US&page=1');
 
@@ -66,6 +85,9 @@ class ApiService {
     );
   }
 
+  Future<List<VideoResult>> fetchMovieVideos(int movieId) =>
+      _getVideos('/movie/$movieId/videos?language=en-US');
+
   Future<List<TvShow>> fetchOnAirTv() =>
       _getTvShows('/tv/on_the_air?language=en-US&page=1');
 
@@ -78,6 +100,9 @@ class ApiService {
       '/search/tv?language=en-US&query=${Uri.encodeComponent(query)}&page=1',
     );
   }
+
+  Future<List<VideoResult>> fetchTvVideos(int tvId) =>
+      _getVideos('/tv/$tvId/videos?language=en-US');
 
   Future<List<Actor>> fetchPopularActors() =>
       _getActors('/person/popular?language=en-US&page=1');

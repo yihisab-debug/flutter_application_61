@@ -1,10 +1,27 @@
 import 'package:flutter/material.dart';
 import '../models/movie.dart';
+import '../models/video_result.dart';
+import '../services/api_service.dart';
+import '../widgets/trailers_section.dart';
 
-class MovieDetailsPage extends StatelessWidget {
+class MovieDetailsPage extends StatefulWidget {
   final Movie movie;
 
   const MovieDetailsPage({required this.movie, super.key});
+
+  @override
+  State<MovieDetailsPage> createState() => _MovieDetailsPageState();
+}
+
+class _MovieDetailsPageState extends State<MovieDetailsPage> {
+  final ApiService _apiService = ApiService();
+  late final Future<List<VideoResult>> _videosFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _videosFuture = _apiService.fetchMovieVideos(widget.movie.id);
+  }
 
   Color _ratingColor(double rating) {
     if (rating >= 7) return const Color(0xFF21D07A);
@@ -20,16 +37,14 @@ class MovieDetailsPage extends StatelessWidget {
         backgroundColor: const Color(0xFF0D0F1E),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
-
         title: Text(
-          movie.title,
+          widget.movie.title,
           style: const TextStyle(color: Colors.white, fontSize: 18),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-
       ),
-      
+
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -42,22 +57,19 @@ class MovieDetailsPage extends StatelessWidget {
                   width: double.infinity,
                   height: 400,
                   child: Image.network(
-                    movie.posterUrl,
+                    widget.movie.posterUrl,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Container(
                       height: 400,
                       color: const Color(0xFF1E2340),
-
                       child: const Center(
                         child: Icon(Icons.broken_image, color: Colors.white38, size: 64),
                       ),
-
                     ),
                   ),
                 ),
 
                 Positioned.fill(
-
                   child: Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
@@ -68,8 +80,8 @@ class MovieDetailsPage extends StatelessWidget {
                       ),
                     ),
                   ),
-
                 ),
+
               ],
             ),
 
@@ -80,7 +92,7 @@ class MovieDetailsPage extends StatelessWidget {
                 children: [
 
                   Text(
-                    movie.title,
+                    widget.movie.title,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
@@ -93,27 +105,28 @@ class MovieDetailsPage extends StatelessWidget {
 
                   Row(
                     children: [
-
+                      
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: _ratingColor(movie.voteAverage).withOpacity(0.15),
+                          color: _ratingColor(widget.movie.voteAverage).withOpacity(0.15),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: _ratingColor(movie.voteAverage), width: 1.5),
+                          border: Border.all(
+                              color: _ratingColor(widget.movie.voteAverage), width: 1.5),
                         ),
 
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
 
-                            Icon(Icons.star, color: _ratingColor(movie.voteAverage), size: 16),
-
+                            Icon(Icons.star,
+                                color: _ratingColor(widget.movie.voteAverage), size: 16),
                             const SizedBox(width: 4),
 
                             Text(
-                              movie.voteAverage.toStringAsFixed(1),
+                              widget.movie.voteAverage.toStringAsFixed(1),
                               style: TextStyle(
-                                color: _ratingColor(movie.voteAverage),
+                                color: _ratingColor(widget.movie.voteAverage),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
                               ),
@@ -125,29 +138,26 @@ class MovieDetailsPage extends StatelessWidget {
 
                       const SizedBox(width: 12),
 
-                      if (movie.releaseDate.isNotEmpty)
+                      if (widget.movie.releaseDate.isNotEmpty)
 
                         Row(
                           children: [
-
                             const Icon(Icons.calendar_today, color: Colors.white54, size: 14),
-
                             const SizedBox(width: 6),
-
                             Text(
-                              movie.releaseDate,
+                              widget.movie.releaseDate,
                               style: const TextStyle(color: Colors.white54, fontSize: 14),
                             ),
-
                           ],
                         ),
+
                     ],
                   ),
 
                   const SizedBox(height: 20),
 
                   const Text(
-                    "Overview",
+                    'Overview',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -158,13 +168,17 @@ class MovieDetailsPage extends StatelessWidget {
                   const SizedBox(height: 8),
 
                   Text(
-                    movie.overview.isEmpty ? "No description available." : movie.overview,
+                    widget.movie.overview.isEmpty
+                        ? 'No description available.'
+                        : widget.movie.overview,
                     style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 15,
                       height: 1.6,
                     ),
                   ),
+
+                  TrailersSection(future: _videosFuture),
                   
                 ],
               ),

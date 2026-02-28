@@ -1,10 +1,26 @@
 import 'package:flutter/material.dart';
 import '../models/tv_show.dart';
+import '../services/api_service.dart';
+import '../widgets/trailers_section.dart';
 
-class TvShowDetailsPage extends StatelessWidget {
+class TvShowDetailsPage extends StatefulWidget {
   final TvShow show;
 
   const TvShowDetailsPage({required this.show, super.key});
+
+  @override
+  State<TvShowDetailsPage> createState() => _TvShowDetailsPageState();
+}
+
+class _TvShowDetailsPageState extends State<TvShowDetailsPage> {
+  final ApiService _apiService = ApiService();
+  late final Future _videosFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _videosFuture = _apiService.fetchTvVideos(widget.show.id);
+  }
 
   Color _ratingColor(double rating) {
     if (rating >= 7) return const Color(0xFF21D07A);
@@ -22,13 +38,13 @@ class TvShowDetailsPage extends StatelessWidget {
         iconTheme: const IconThemeData(color: Colors.white),
 
         title: Text(
-          show.name,
+          widget.show.name,
           style: const TextStyle(color: Colors.white, fontSize: 18),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
       ),
-
+      
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -41,7 +57,7 @@ class TvShowDetailsPage extends StatelessWidget {
                   width: double.infinity,
                   height: 400,
                   child: Image.network(
-                    show.posterUrl,
+                    widget.show.posterUrl,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Container(
                       height: 400,
@@ -49,9 +65,10 @@ class TvShowDetailsPage extends StatelessWidget {
                       color: const Color(0xFF1E2340),
 
                       child: const Center(
-                        child: Icon(Icons.broken_image, color: Colors.white38, size: 64),
-
+                        child: Icon(Icons.broken_image,
+                            color: Colors.white38, size: 64),
                       ),
+
                     ),
                   ),
                 ),
@@ -79,7 +96,7 @@ class TvShowDetailsPage extends StatelessWidget {
                 children: [
 
                   Text(
-                    show.name,
+                    widget.show.name,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
@@ -94,24 +111,31 @@ class TvShowDetailsPage extends StatelessWidget {
                     children: [
 
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: _ratingColor(show.voteAverage).withOpacity(0.15),
+                          color: _ratingColor(widget.show.voteAverage)
+                              .withOpacity(0.15),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: _ratingColor(show.voteAverage), width: 1.5),
+                          border: Border.all(
+                              color: _ratingColor(widget.show.voteAverage),
+                              width: 1.5),
                         ),
+
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
 
-                            Icon(Icons.star, color: _ratingColor(show.voteAverage), size: 16),
+                            Icon(Icons.star,
+                                color: _ratingColor(widget.show.voteAverage),
+                                size: 16),
 
                             const SizedBox(width: 4),
 
                             Text(
-                              show.voteAverage.toStringAsFixed(1),
+                              widget.show.voteAverage.toStringAsFixed(1),
                               style: TextStyle(
-                                color: _ratingColor(show.voteAverage),
+                                color: _ratingColor(widget.show.voteAverage),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
                               ),
@@ -123,29 +147,32 @@ class TvShowDetailsPage extends StatelessWidget {
 
                       const SizedBox(width: 12),
 
-                      if (show.firstAirDate.isNotEmpty)
-                      
+                      if (widget.show.firstAirDate.isNotEmpty)
+
                         Row(
                           children: [
 
-                            const Icon(Icons.calendar_today, color: Colors.white54, size: 14),
+                            const Icon(Icons.calendar_today,
+                                color: Colors.white54, size: 14),
 
                             const SizedBox(width: 6),
 
                             Text(
-                              show.firstAirDate,
-                              style: const TextStyle(color: Colors.white54, fontSize: 14),
+                              widget.show.firstAirDate,
+                              style: const TextStyle(
+                                  color: Colors.white54, fontSize: 14),
                             ),
 
                           ],
                         ),
+
                     ],
                   ),
 
                   const SizedBox(height: 20),
 
                   const Text(
-                    "Overview",
+                    'Overview',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -156,14 +183,18 @@ class TvShowDetailsPage extends StatelessWidget {
                   const SizedBox(height: 8),
 
                   Text(
-                    show.overview.isEmpty ? "No description available." : show.overview,
+                    widget.show.overview.isEmpty
+                        ? 'No description available.'
+                        : widget.show.overview,
                     style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 15,
                       height: 1.6,
                     ),
                   ),
-                  
+
+                  TrailersSection(future: _videosFuture),
+
                 ],
               ),
             ),
